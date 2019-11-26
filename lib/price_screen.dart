@@ -3,43 +3,69 @@ import 'coin_data.dart';
 import 'package:flutter/cupertino.dart';
 import 'dart:io' show Platform;
 
+ScrollController _controller;
+
 class PriceScreen extends StatefulWidget {
   @override
   _PriceScreenState createState() => _PriceScreenState();
+  
 }
 
 class _PriceScreenState extends State<PriceScreen> {
   String selectedCurrencency = 'USD';
+  String  tempSelectedCurrencency = 'USD';
+  bool isWaiting = true;
   var  currencyValue ;
-  
-  Future<dynamic> getCurrencyOnline(String currency) async{
-        CoinData coinOnline  = CoinData();
+   
 
-      var  response = await coinOnline.getCoinData(currency);
+
+  
+  Future<dynamic> getCurrencyOnline() async{
+
+        isWaiting = true;
+
+      var  response = await CoinData().getCoinData(selectedCurrencency);
+      print(response);
+      setState(() {
+
+                    currencyValue = response;
+                  });
+      isWaiting = false;
       return response;
   }
-  CupertinoPicker iOSwidget(){
-    List<Text> dropMenuItems = [];
+  NotificationListener<ScrollNotification> iOSwidget(){
 
+    List<Text> dropMenuItems = [];
+    FixedExtentScrollController _controller = FixedExtentScrollController();
     for (String currency in currenciesList) {
       var newItem = new Text(currency);
       dropMenuItems.add(newItem);
     }
+      return NotificationListener<ScrollNotification>(
+                      onNotification: (scrollNotification){
+                        if (scrollNotification is ScrollEndNotification) {
+                           selectedCurrencency = tempSelectedCurrencency;
+                          getCurrencyOnline();
+                          return true;
+                        } else {
+                          return false;
+                        }
+                      },
+                      child: CupertinoPicker(
+                        itemExtent: 32,
+                        scrollController: _controller,
+                        children: dropMenuItems,
+                        backgroundColor: Colors.lightBlue,
+                        onSelectedItemChanged: (selectedIndex) {
+                          setState(() {
+                            tempSelectedCurrencency = dropMenuItems[selectedIndex].data;
+                           
 
-    return CupertinoPicker(
-                backgroundColor: Colors.lightBlue,
-                itemExtent: 32,
-                onSelectedItemChanged: (selectedIndex) async {
-                  var currencyValueResult = await getCurrencyOnline(dropMenuItems[selectedIndex].data);
-                  print(currencyValueResult);
-                  setState(() {
-                    selectedCurrencency = dropMenuItems[selectedIndex].data;
-                    currencyValue = currencyValueResult;
-                  });
-                  print(selectedIndex);
-                },
-                children: dropMenuItems,
-              );
+                          });
+                        },
+                      ),
+                    );
+   
   }
   DropdownButton androidWidget(){
     List<DropdownMenuItem<String>> dropMenuItems = [];
@@ -55,12 +81,10 @@ class _PriceScreenState extends State<PriceScreen> {
     return DropdownButton<String>(
                 value: selectedCurrencency,
                 items: dropMenuItems,
-                onChanged: (value) async {
-                  var currencyValueResult = await getCurrencyOnline(value);
-                  print(currencyValueResult);
+                onChanged: (value)  {
                   setState(() {
                     selectedCurrencency = value;
-                    currencyValue = currencyValueResult;
+                    getCurrencyOnline();
                   });
                 },
               );
@@ -90,7 +114,7 @@ class _PriceScreenState extends State<PriceScreen> {
               child: Padding(
                 padding: EdgeInsets.symmetric(vertical: 15.0, horizontal: 28.0),
                 child: Text(
-                  '1 $c = ${currencyValue["$c$selectedCurrencency"]["last"]} $selectedCurrencency',
+                  isWaiting ? '?'  :  '1 $c = ${currencyValue["$c$selectedCurrencency"]["last"]} $selectedCurrencency',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 20.0,
@@ -103,6 +127,14 @@ class _PriceScreenState extends State<PriceScreen> {
       paddingItems.add(item);
     }
     return paddingItems;
+  }
+@override
+  void initState() {
+    super.initState();
+    getCurrencyOnline();
+
+
+
   }
 
   @override
